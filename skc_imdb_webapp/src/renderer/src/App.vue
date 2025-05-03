@@ -94,85 +94,116 @@ const filteredMovies = computed(() => {
   });
 });
 
-// --- 新增: 獲取用於分組的正規化 FilmType ---
-function getGroupedFilmType(rawFilmType: string | undefined | null): string {
-  if (!rawFilmType) return '未知類型';
-  const lowerCaseType = rawFilmType.toLowerCase();
-  if (lowerCaseType.includes('b.o.x') || lowerCaseType.includes('box') || lowerCaseType.includes('sealy') || lowerCaseType.includes('osim')) {
-    return 'B.O.X.'; // 正規化名稱改為 B.O.X.
-  }
-  return rawFilmType; // 返回原始名稱
+// --- 新增: 解析 FilmType 以獲取分組名和附加描述 ---
+interface ProcessedFilmType {
+  groupName: string;
+  modifier: string | null;
 }
 
-// 修改: 排序輔助函數，調整 B.O.X. 和普通廳的優先級
-function getFilmTypePriority(filmType: string): number {
-    const lowerCaseType = filmType.toLowerCase();
+function processFilmTypeAndModifier(rawFilmType: string | undefined | null): ProcessedFilmType {
+  if (!rawFilmType) {
+    return { groupName: '未知類型', modifier: null };
+  }
+
+  const lowerCaseType = rawFilmType.toLowerCase();
+  let groupName = rawFilmType; // Default to original
+  let modifier: string | null = null;
+  let keywordFound = false;
+
+  // Check for Dolby
+  if (lowerCaseType.includes('dolby')) {
+    groupName = 'Dolby Cinema';
+    // Extract modifier by removing base name and separators
+    modifier = rawFilmType.replace(/dolby cinema/i, '').replace(/[-:()]/g, '').trim();
+    keywordFound = true;
+  }
+  // Check for LUXE (if not already Dolby)
+  else if (lowerCaseType.includes('luxe')) {
+    groupName = 'LUXE';
+    modifier = rawFilmType.replace(/luxe/i, '').replace(/[-:()]/g, '').trim();
+    keywordFound = true;
+  }
+  // Check for B.O.X./Sealy/OSIM (if not Dolby or LUXE)
+  else if (lowerCaseType.includes('b.o.x') || lowerCaseType.includes('box') || lowerCaseType.includes('sealy') || lowerCaseType.includes('osim')) {
+    groupName = 'B.O.X.';
+    // --- MODIFIED: Explicitly set modifier to null for B.O.X. types --- 
+    modifier = null; 
+    keywordFound = true;
+  }
+
+  // If a keyword was found but modifier is empty string, set to null
+  // --- REMOVED: This check is no longer needed for B.O.X. and handled within Dolby/LUXE checks ---
+  /*
+  if (keywordFound && modifier === '') {
+    modifier = null;
+  }
+  */
+
+  return { groupName, modifier };
+}
+// --- END: processFilmTypeAndModifier ---
+
+// 修改: 排序輔助函數，基於 groupName
+function getFilmTypePriority(groupName: string): number { // Parameter changed to groupName
+    const lowerCaseType = groupName.toLowerCase(); // Use groupName
     if (lowerCaseType.includes('dolby')) return 0;
     if (lowerCaseType.includes('luxe')) return 1;
-    // --- 修改: 調整 B.O.X. 和普通廳的優先級 ---
-    if (lowerCaseType.includes('b.o.x.')) return 3; // B.O.X. 改為 3
-    // 其他所有類型 (數位, 日語版 etc.) 為普通優先級
-    return 2; // 普通廳改為 2
+    if (lowerCaseType.includes('b.o.x.')) return 3; 
+    return 2; 
 }
 
-// 修改: groupedAndSortedSessions 使用正規化類型進行分組
+// 修改: groupedAndSortedSessions 使用新函數並附加 modifier
 const groupedAndSortedSessions = computed(() => {
   if (!selectedMovie.value?.sessions) {
     return {};
   }
 
-  // --- MODIFIED START: Initialize sessionsToProcess based on showTodayOnly ---
   let sessionsToProcess: SKCSession[];
 
   if (showTodayOnly.value) {
-    // Get today's date in MM-DD format
     const today = new Date();
     const month = String(today.getMonth() + 1).padStart(2, '0'); 
     const day = String(today.getDate()).padStart(2, '0');
     const todayDateStr = `${month}-${day}`;
-
-    console.log(`Filtering right panel sessions for date: ${todayDateStr}`);
-
     sessionsToProcess = selectedMovie.value.sessions.filter(session => session.date === todayDateStr);
   } else {
-    // If the switch is off, use all sessions
     sessionsToProcess = selectedMovie.value.sessions;
-    console.log("Showing all sessions as 'Show Today Only' is off.");
   }
-  // --- MODIFIED END ---
-
-  // Continue with grouping and sorting using potentially filtered sessionsToProcess
   
-  // 臨時分組結構
+  // 臨時分組結構 (擴展 SKCSession 以包含 modifier)
+  type SessionWithModifier = SKCSession & { sessionModifier?: string | null };
   const tempGroupedData: { 
       [dateKey: string]: { 
           weekday: string; 
-          filmTypes: { [type: string]: SKCSession[] } 
+          filmTypes: { [groupName: string]: SessionWithModifier[] } // Key is groupName
       } 
   } = {};
 
-  // Use sessionsToProcess instead of selectedMovie.value.sessions directly
+  // 遍歷並處理 filmType，附加 modifier
   for (const session of sessionsToProcess) { 
     const dateKey = session.date; 
     if (!dateKey || !session.weekday) continue;
-    // --- 修改: 使用正規化函數獲取分組依據的 filmType --- 
-    const filmType = getGroupedFilmType(session.filmType);
+    
+    // --- 使用新函數處理 --- 
+    const { groupName, modifier } = processFilmTypeAndModifier(session.filmType);
     // --- 修改結束 ---
+    
     if (!tempGroupedData[dateKey]) {
       tempGroupedData[dateKey] = { weekday: session.weekday, filmTypes: {} };
     }
-    if (!tempGroupedData[dateKey].filmTypes[filmType]) {
-      tempGroupedData[dateKey].filmTypes[filmType] = [];
+    if (!tempGroupedData[dateKey].filmTypes[groupName]) { // Use groupName as key
+      tempGroupedData[dateKey].filmTypes[groupName] = [];
     }
-    tempGroupedData[dateKey].filmTypes[filmType].push(session);
+    // --- 將 modifier 附加到 session 物件 --- 
+    tempGroupedData[dateKey].filmTypes[groupName].push({ ...session, sessionModifier: modifier });
+    // --- 修改結束 ---
   }
 
-  // 最終的、排序後的結構
+  // 最終的、排序後的結構 (類型也需更新)
   const finalSortedData: { 
       [dateKey: string]: { 
           weekday: string; 
-          // 修改: filmTypes 現在是排序後的陣列
-          sortedFilmTypes: { filmType: string; sessions: SKCSession[] }[] 
+          sortedFilmTypes: { filmType: string; sessions: SessionWithModifier[] }[] // Use SessionWithModifier
       } 
   } = {};
 
@@ -181,13 +212,13 @@ const groupedAndSortedSessions = computed(() => {
     const dateGroup = tempGroupedData[dateKey];
     const filmTypeKeys = Object.keys(dateGroup.filmTypes);
 
-    // 根據自訂邏輯排序 filmTypeKeys
+    // 根據自訂邏輯排序 filmTypeKeys (groupName)
     filmTypeKeys.sort((a, b) => getFilmTypePriority(a) - getFilmTypePriority(b));
 
     // 創建排序後的 filmTypes 陣列
-    const sortedTypesArray = filmTypeKeys.map(filmType => ({
-      filmType: filmType,
-      sessions: dateGroup.filmTypes[filmType].sort((sA, sB) => sA.showtime.localeCompare(sB.showtime)) //確保內部session排序
+    const sortedTypesArray = filmTypeKeys.map(groupNameKey => ({
+      filmType: groupNameKey, // Display groupName as the title
+      sessions: dateGroup.filmTypes[groupNameKey].sort((sA, sB) => sA.showtime.localeCompare(sB.showtime)) 
     }));
 
     finalSortedData[dateKey] = {
@@ -196,7 +227,7 @@ const groupedAndSortedSessions = computed(() => {
     };
   }
 
-  console.log("Final Sorted Sessions Structure:", finalSortedData);
+  console.log("Final Sorted Sessions Structure with Modifiers:", finalSortedData);
   return finalSortedData;
 });
 
@@ -455,11 +486,18 @@ onUnmounted(() => {
                             >
                               {{ session.showtime }}
                             </span>
-                            <!-- Conditionally show screen name using new fields, check ORIGINAL filmType -->
+                            <!-- NEW: Display session modifier -->
+                            <span 
+                              v-if="session.sessionModifier"
+                              class="session-modifier"
+                            >
+                              {{ session.sessionModifier }}
+                            </span>
+                            <!-- Conditionally show screen name, check ORIGINAL filmType -->
                             <span
                               v-if="session.screenName && !(session.filmType?.toLowerCase().includes('luxe') || session.filmType?.toLowerCase().includes('dolby'))"
                               class="session-screenname"
-                            >
+                             >
                               {{ session.screenName }}
                             </span>
                           </div>
@@ -1073,6 +1111,14 @@ body {
 
 .header-link-icon:hover {
   color: var(--el-color-primary); /* Use Element Plus primary color on hover */
+}
+
+/* ADDED: Style for the session modifier text */
+.session-modifier {
+  font-size: 0.8rem; /* Smaller font size */
+  color: var(--dark-text-secondary); /* Muted color */
+  /* font-style: italic; */ /* Removed italic style */
+  /* margin-left: 4px; */ /* Optional space */
 }
 
 </style>
