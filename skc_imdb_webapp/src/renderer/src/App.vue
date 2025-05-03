@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from 'vue'
 // Import necessary components and icons from Element Plus
-import { ElContainer, ElHeader, ElAside, ElMain, ElScrollbar, ElImage, ElIcon, ElAlert, ElButton, ElSwitch } from 'element-plus'
-import { Star, Picture as IconPicture, Film, Link, Loading } from '@element-plus/icons-vue'
-import type { CombinedMovieData, SKCSession, LoadingProgressPayload } from 'src/shared/ipc-interfaces' // Assuming interface path
+import { ElContainer, ElButton } from 'element-plus'
+import type { CombinedMovieData, SKCSession, LoadingProgressPayload } from '../../shared/ipc-interfaces' // Corrected path in previous step
+
+// Import child components
+import AppHeader from './components/AppHeader.vue'
+import LoadingOverlay from './components/LoadingOverlay.vue' // Added
+import MovieListSidebar from './components/MovieListSidebar.vue' // Added
+import MovieDetailsPanel from './components/MovieDetailsPanel.vue' // Added
+
+// Import utility functions
+import { processFilmTypeAndModifier, getFilmTypePriority } from './utils/formatters'
 
 // --- Simulate Pinia Store State ---
 const movies = ref<CombinedMovieData[]>([]);
@@ -95,62 +103,8 @@ const filteredMovies = computed(() => {
 });
 
 // --- 新增: 解析 FilmType 以獲取分組名和附加描述 ---
-interface ProcessedFilmType {
-  groupName: string;
-  modifier: string | null;
-}
-
-function processFilmTypeAndModifier(rawFilmType: string | undefined | null): ProcessedFilmType {
-  if (!rawFilmType) {
-    return { groupName: '未知類型', modifier: null };
-  }
-
-  const lowerCaseType = rawFilmType.toLowerCase();
-  let groupName = rawFilmType; // Default to original
-  let modifier: string | null = null;
-  let keywordFound = false;
-
-  // Check for Dolby
-  if (lowerCaseType.includes('dolby')) {
-    groupName = 'Dolby Cinema';
-    // Extract modifier by removing base name and separators
-    modifier = rawFilmType.replace(/dolby cinema/i, '').replace(/[-:()]/g, '').trim();
-    keywordFound = true;
-  }
-  // Check for LUXE (if not already Dolby)
-  else if (lowerCaseType.includes('luxe')) {
-    groupName = 'LUXE';
-    modifier = rawFilmType.replace(/luxe/i, '').replace(/[-:()]/g, '').trim();
-    keywordFound = true;
-  }
-  // Check for B.O.X./Sealy/OSIM (if not Dolby or LUXE)
-  else if (lowerCaseType.includes('b.o.x') || lowerCaseType.includes('box') || lowerCaseType.includes('sealy') || lowerCaseType.includes('osim')) {
-    groupName = 'B.O.X.';
-    // --- MODIFIED: Explicitly set modifier to null for B.O.X. types --- 
-    modifier = null; 
-    keywordFound = true;
-  }
-
-  // If a keyword was found but modifier is empty string, set to null
-  // --- REMOVED: This check is no longer needed for B.O.X. and handled within Dolby/LUXE checks ---
-  /*
-  if (keywordFound && modifier === '') {
-    modifier = null;
-  }
-  */
-
-  return { groupName, modifier };
-}
-// --- END: processFilmTypeAndModifier ---
 
 // 修改: 排序輔助函數，基於 groupName
-function getFilmTypePriority(groupName: string): number { // Parameter changed to groupName
-    const lowerCaseType = groupName.toLowerCase(); // Use groupName
-    if (lowerCaseType.includes('dolby')) return 0;
-    if (lowerCaseType.includes('luxe')) return 1;
-    if (lowerCaseType.includes('b.o.x.')) return 3; 
-    return 2; 
-}
 
 // 修改: groupedAndSortedSessions 使用新函數並附加 modifier
 const groupedAndSortedSessions = computed(() => {
@@ -329,221 +283,38 @@ onUnmounted(() => {
 
 <template>
   <div class="common-layout home-view-dark">
-    <!-- Loading Overlay -->
-    <div v-if="loading" class="custom-loading-overlay">
-      <el-icon class="is-loading custom-loading-spinner" :size="30">
-        <Loading />
-      </el-icon>
-      <p class="custom-loading-text">{{ loadingMessage }}</p>
-    </div>
+    <!-- Use LoadingOverlay component -->
+    <LoadingOverlay 
+      :loading="loading" 
+      :loading-message="loadingMessage" 
+      :progress-x="loadingProgressX" 
+      :progress-n="loadingProgressN" 
+      :movie-name="loadingMovieName"
+    />
 
     <!-- Main Application Container -->
-  <el-container class="main-container">
-      <!-- Header Section -->
-      <el-header height="auto" class="main-header">
-         <!-- Wrap title and switch for flex layout -->
-         <div class="header-content">
-           <h1 class="header-title-wrapper">
-             新光影城電影列表 — 青埔影院
-             <a href="https://www.skcinemas.com/sessions?c=1004" target="_blank" rel="noopener noreferrer" class="header-link-icon">
-               <el-icon><Link /></el-icon>
-             </a>
-           </h1>
-           <!-- 'Show Today Only' Switch -->
-           <div class="show-today-switch-container">
-              <el-switch
-                v-model="showTodayOnly"
-                size="large"
-                id="showTodaySwitch" 
-              />
-              <label for="showTodaySwitch" class="switch-label">只顯示當日場次</label> 
-           </div>
-         </div>
-         <!-- Error Alert -->
-         <el-alert
-           v-if="error"
-           :title="'載入數據時發生錯誤'"
-           type="error"
-           :closable="false"
-           show-icon
-           class="error-alert"
-         >
-           <p>{{ error }}</p>
-           <el-button @click="fetchMovies" type="primary" size="small" style="margin-top: 10px;">重試</el-button>
-         </el-alert>
-      </el-header>
-
+    <el-container class="main-container">
+      <!-- Use AppHeader component -->
+      <AppHeader :error="error" v-model:showTodayOnly="showTodayOnly" @retry="fetchMovies" />
+      
       <!-- Content Area (only shown when not loading and no error) -->
       <el-container v-if="!loading && !error" class="content-container">
-        <!-- Left Sidebar: Movie List -->
-        <el-aside width="260px" class="movie-list-aside">
-          <el-scrollbar>
-            <!-- Placeholder if no movies -->
-            <div v-if="movies.length === 0" class="no-movies-placeholder">
-              目前沒有可顯示的電影。
-            </div>
-            <!-- Movie List Items -->
-            <div v-else class="movie-list-items">
-               <div
-                 v-for="movie in filteredMovies"
-                 :key="String(movie.filmNameID)"
-                 class="movie-list-item"
-                 :class="{ 'is-selected': selectedMovie && String(selectedMovie.filmNameID) === String(movie.filmNameID) }"
-                 @click="selectMovie(movie)"
-                >
-                   <!-- List Item Poster -->
-                   <el-image
-                     :src="movie.posterPath || ''"  
-                     :alt="`${movie.movieName} Poster`"
-                     fit="cover"
-                     class="list-item-poster-image"
-                   >
-                     <template #error>
-                       <div class="image-slot-error list-item-poster-error">
-                         <el-icon><IconPicture /></el-icon>
-                       </div>
-                     </template>
-                     <template #placeholder>
-                       <div class="image-slot-placeholder list-item-poster-placeholder-content"></div>
-                     </template>
-                   </el-image>
-
-                   <!-- List Item Details -->
-                   <div class="list-item-details">
-                    <h4>{{ movie.movieName.replace(/　/g, ' ') }}</h4>
-                    <p class="list-item-english-title">{{ movie.englishTitle }}</p>
-                    <p class="rating imdb-rating-list">
-                      <el-icon><Star /></el-icon>
-                      <span v-if="movie.imdbRating === '-1'" class="rating-unavailable">未評分</span>
-                      <span v-else-if="movie.imdbRating === '-2'" class="rating-unavailable">查詢失敗</span>
-                      <span v-else-if="movie.imdbRating !== null">{{ parseFloat(movie.imdbRating).toFixed(1) }}</span>
-                      <span v-else class="rating-unavailable">...</span>
-                    </p>
-                  </div>
-               </div>
-            </div>
-          </el-scrollbar>
-      </el-aside>
+        <!-- Use MovieListSidebar component -->
+        <MovieListSidebar
+          :filtered-movies="filteredMovies" 
+          :selected-movie="selectedMovie"
+          :loading="loading" 
+          :error="error"
+          @select-movie="selectMovie" 
+        />
 
         <!-- Right Main Area: Movie Details -->
-        <el-main class="movie-details-main">
-          <!-- Placeholder if no movie selected -->
-          <div v-if="!selectedMovie" class="details-placeholder" key="placeholder">
-            <el-icon size="50"><Film /></el-icon>
-            <p>請從左側列表選擇一部電影以查看詳情。</p>
-          </div>
-          <!-- Selected Movie Details View -->
-          <div v-else class="selected-movie-details" key="details">
-            <!-- Left Part: Textual Details -->
-            <div class="details-content">
-              <h2 style="word-break: break-all;">{{ selectedMovie.movieName.replace(/　/g, ' ') }}</h2>
-              <p class="detail-english-title">{{ selectedMovie.englishTitle }}</p>
-              <p class="rating">
-                <el-icon><Star /></el-icon>
-                <span v-if="selectedMovie.imdbRating === '-1'" class="rating-unavailable">IMDb未評分</span>
-                <span v-else-if="selectedMovie.imdbRating === '-2'" class="rating-unavailable">IMDb查詢失敗</span>
-                <span v-else-if="selectedMovie.imdbRating !== null">{{ parseFloat(selectedMovie.imdbRating).toFixed(1) + ' / 10 (IMDb)' }}</span>
-                <span v-else class="rating-unavailable">...</span>
-              </p>
-              <div class="tags">
-                 <span v-if="!selectedMovie.genres || selectedMovie.genres.length === 0" class="genre-tag-capsule" key="genres-placeholder">類型...</span>
-                 <span v-else-if="Array.isArray(selectedMovie.genres)" v-for="genre in selectedMovie.genres" :key="genre" class="genre-tag-capsule">{{ genre }}</span>
-              </div>
-              <p class="credits">導演：<span>{{ Array.isArray(selectedMovie.directors) ? selectedMovie.directors.join(', ') : selectedMovie.directors || '...' }}</span></p>
-              <p class="credits">主演：<span>{{ Array.isArray(selectedMovie.cast) ? selectedMovie.cast.join(', ') : selectedMovie.cast || '...' }}</span></p>
-              <p class="credits runtime">片長：<span>{{ formatRuntime(selectedMovie.runtimeMinutes) }}</span></p>
-
-              <h3>劇情簡介</h3>
-              <p class="plot">{{ selectedMovie.ratingDescription || selectedMovie.plot || '...' }}</p>
-
-              <!-- Sessions Section -->
-              <div class="sessions-container">
-                 <p v-if="!groupedAndSortedSessions || Object.keys(groupedAndSortedSessions).length === 0" class="no-sessions-info">無場次資訊</p>
-                 <div
-                   v-else
-                   v-for="(dateGroupData, dateKey) in groupedAndSortedSessions" 
-                   :key="dateKey"
-                   class="session-date-group"
-                  >
-                    <!-- Pass both dateKey and weekday -->
-                    <h4 class="session-date-title">時刻表 - {{ formatGroupDateTitle(dateKey as string, dateGroupData.weekday) }}</h4>
-                    <div class="filmtype-columns-container">
-                       <div
-                         v-for="typeGroup in dateGroupData.sortedFilmTypes" 
-                         :key="typeGroup.filmType"
-                         class="filmtype-column"
-                       >
-                         <h5 class="filmtype-column-title">{{ typeGroup.filmType }}</h5>
-                         <div
-                           v-for="(session, index) in typeGroup.sessions"
-                           :key="`${dateKey}-${typeGroup.filmType}-${index}`"
-                           class="session-item-in-column"
-                          >
-                            <span 
-                              class="showtime-tag-apple" 
-                              @click="handleSessionClick(session)"
-                              :style="{ cursor: session.sessionId ? 'pointer' : 'default' }" 
-                            >
-                              {{ session.showtime }}
-                            </span>
-                            <!-- NEW: Display session modifier -->
-                            <span 
-                              v-if="session.sessionModifier"
-                              class="session-modifier"
-                            >
-                              {{ session.sessionModifier }}
-                            </span>
-                            <!-- Conditionally show screen name, check ORIGINAL filmType -->
-                            <span
-                              v-if="session.screenName && !(session.filmType?.toLowerCase().includes('luxe') || session.filmType?.toLowerCase().includes('dolby'))"
-                              class="session-screenname"
-                             >
-                              {{ session.screenName }}
-                            </span>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
-               </div>
-
-              <!-- IMDb Link Section -->
-              <div class="imdb-section">
-                 <p v-if="selectedMovie.imdbUrl" class="imdb-link-wrapper">
-                   <a :href="selectedMovie.imdbUrl" target="_blank" rel="noopener noreferrer" class="imdb-link">
-                     在 IMDb 上查看
-                     <el-icon><Link /></el-icon>
-                   </a>
-                 </p>
-                 <p v-else-if="!loading" class="imdb-link-unavailable">
-                     無法獲取 IMDb 連結。
-                 </p>
-                 <br>
-                 <br>
-                 <br>
-               </div>
-            </div>
-            <!-- Right Part: Poster -->
-            <div class="details-poster">
-              <el-image
-                :src="selectedMovie.posterPath || ''" 
-                :alt="`${selectedMovie.movieName} Poster`"
-                fit="contain"
-                class="detail-poster-image"
-              >
-                 <template #error>
-                   <div class="image-slot-error">
-                     <el-icon><IconPicture /></el-icon> <span>圖片加載失敗</span>
-                   </div>
-                 </template>
-                  <template #placeholder>
-                   <div class="image-slot-placeholder">載入中...</div>
-                 </template>
-              </el-image>
-            </div>
-          </div>
-      </el-main>
+        <MovieDetailsPanel 
+          :selected-movie="selectedMovie" 
+          :grouped-and-sorted-sessions="groupedAndSortedSessions"
+        />
+      </el-container>
     </el-container>
-  </el-container>
   </div>
 </template>
 
@@ -585,61 +356,11 @@ body {
 
 .main-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: column !important;
   width: 100%;
-  /* Removed max-width, border-radius, shadow, min-height */
   background-color: var(--dark-bg-secondary);
   overflow: hidden;
-  /* Restored full height */
   height: 100vh;
-}
-
-/* Header Styles */
-.main-header {
-  padding: 1rem 1.5rem; /* Reverted top/bottom padding */
-  border-bottom: 1px solid var(--dark-border-color);
-  background-color: transparent;
-  flex-shrink: 0;
-  height: auto;
-}
-
-/* New: Container for header content (title + switch) */
-.header-content {
-  display: flex;
-  justify-content: space-between; /* Push title left, switch right */
-  align-items: center; /* Vertically align items */
-  height: 75px; /* Match fixed h1 height */
-}
-
-.main-header h1 {
-  margin: 0; /* Reset margin */
-  font-size: 2rem;
-  color: var(--dark-text-primary);
-  text-align: left;
-  /* Remove fixed height and line-height from h1 itself */
-  /* height: 75px; */ 
-  /* line-height: 75px; */ 
-}
-
-/* New: Container for the switch for potential future styling */
-.show-today-switch-container {
-  /* Use flex to align switch and label */
-  display: flex;
-  align-items: center; /* Vertically center items */
-  gap: 8px; /* Add some space between switch and label */
-}
-
-/* New: Style for the switch label */
-.switch-label {
-  color: var(--dark-text-secondary); /* Use secondary text color */
-  font-size: 0.9rem; /* Adjust font size if needed */
-  cursor: pointer; /* Indicate it's clickable (acts like a label) */
-}
-
-.error-alert {
-  margin-top: 1rem;
-  background-color: rgba(245, 108, 108, 0.1);
-  border: 1px solid rgba(245, 108, 108, 0.3);
 }
 
 /* Content container (List + Details) */
@@ -647,112 +368,6 @@ body {
   flex-grow: 1; /* Take remaining vertical space */
   overflow: hidden; /* Prevent scrolling at this level */
   display: flex; /* Arrange list and details horizontally */
-}
-
-/* Movie List Aside Styles */
-.movie-list-aside {
-  background-color: transparent; /* Use parent bg or specific color */
-  border-right: 1px solid var(--dark-border-color);
-  display: flex; /* Allow scrollbar to work correctly */
-  flex-direction: column;
-  flex-shrink: 0; /* Prevent aside from shrinking */
-}
-
-.movie-list-aside .el-scrollbar {
-  flex-grow: 1; /* Allow scrollbar to fill space */
-}
-.movie-list-aside .el-scrollbar__view {
-  padding: 0; /* Remove default padding if needed */
-}
-
-.no-movies-placeholder {
-  padding: 2rem;
-  text-align: center;
-  color: var(--dark-text-secondary);
-}
-
-.movie-list-items {
-  /* No specific styling needed here, items handled below */
-}
-
-/* Individual Movie List Item Styles */
-.movie-list-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 15px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--dark-border-color);
-  transition: background-color 0.2s;
-}
-
-.movie-list-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.movie-list-item.is-selected {
-  background-color: var(--dark-highlight-bg);
-}
-
-.list-item-poster-image {
-  width: 70px;
-  height: 105px;
-  margin-right: 12px;
-  flex-shrink: 0;
-  border-radius: 6px;
-  background-color: #555; /* Placeholder BG */
-}
-
-.list-item-details {
-  overflow: hidden; /* Prevent text overflow */
-}
-
-.list-item-details h4 {
-  margin: 0 0 2px 0;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--dark-text-primary);
-}
-
-.list-item-english-title {
-  font-size: 0.75rem;
-  color: var(--dark-text-secondary);
-  margin: 0 0 4px 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.list-item-details .rating {
-  font-size: 0.8rem;
-  color: var(--dark-text-secondary);
-  margin: 0;
-  display: flex;
-  align-items: center;
-}
-.list-item-details .rating .el-icon {
-  margin-right: 4px;
-  color: #f7ba2a; /* Gold star */
-}
-.list-item-details .rating.imdb-rating-list {
-  font-weight: bold;
-}
-
-
-/* Poster Placeholder/Error Styles (List Item) */
-.image-slot-error.list-item-poster-error,
-.image-slot-placeholder.list-item-poster-placeholder-content {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-  background-color: #444;
-}
-.list-item-poster-error .el-icon {
-  font-size: 20px;
-  color: var(--dark-text-secondary);
 }
 
 /* Movie Details Main Area Styles */

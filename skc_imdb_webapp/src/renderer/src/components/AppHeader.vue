@@ -25,7 +25,7 @@ const localShowTodayOnly = computed({
 
 <template>
   <el-header height="auto" class="main-header">
-    <!-- Copied Header Content from App.vue -->
+    <!-- Header Content from App.vue -->
     <div class="header-content">
       <h1 class="header-title-wrapper">
         新光影城電影列表 — 青埔影院
@@ -59,7 +59,7 @@ const localShowTodayOnly = computed({
 </template>
 
 <style scoped>
-/* Copied Header Styles from App.vue */
+/* Header Styles from App.vue */
 .main-header {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--dark-border-color);
@@ -117,16 +117,5 @@ const localShowTodayOnly = computed({
   border: 1px solid rgba(245, 108, 108, 0.3);
 }
 
-/* Define CSS Variables used if not globally defined (copy from App.vue <style>) */
-/* :root definitions are generally not needed inside scoped styles
-   unless you are setting fallbacks for variables defined outside.
-   Assuming these variables are defined in App.vue or globally. */
-/*
-:root {
-  --dark-border-color: #333;
-  --dark-text-primary: #e0e0e0;
-  --dark-text-secondary: #a0a0a0;
-  --el-color-primary: #409EFF;
-}
-*/
+/* Variables assumed to be defined in App.vue or globally */
 </style>

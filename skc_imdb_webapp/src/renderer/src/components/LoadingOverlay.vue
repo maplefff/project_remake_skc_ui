@@ -5,6 +5,9 @@ import { Loading } from '@element-plus/icons-vue'
 defineProps<{
   loading: boolean
   loadingMessage: string
+  progressX?: number | null
+  progressN?: number | null
+  movieName?: string | null
 }>()
 </script>
 
@@ -14,6 +17,12 @@ defineProps<{
       <Loading />
     </el-icon>
     <p class="custom-loading-text">{{ loadingMessage }}</p>
+    <p v-if="progressN !== null && progressX !== null" class="progress-detail">
+        ({{ progressX }} / {{ progressN }}) {{ movieName ? `- ${movieName}` : '' }}
+    </p>
+    <p v-else-if="progressN !== null && progressN > 0" class="progress-detail">
+       (共 {{ progressN }} 部)
+    </p>
   </div>
 </template>
 
@@ -43,5 +52,12 @@ defineProps<{
   margin-top: 15px;
   color: #C0C4CC; 
   font-size: 0.9rem; 
+}
+
+/* Added: Style for progress details */
+.progress-detail {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #909399; /* Lighter secondary text */
 }
 </style> 

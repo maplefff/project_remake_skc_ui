@@ -1,21 +1,20 @@
 <script setup lang="ts">
 import { PropType } from 'vue';
 import { ElAside, ElScrollbar, ElIcon, ElImage } from 'element-plus'
-import { Star, Picture as IconPicture } from '@element-plus/icons-vue' // Added Star
+import { Star, Picture as IconPicture } from '@element-plus/icons-vue'
 import type { CombinedMovieData } from '../../../shared/ipc-interfaces';
 
 defineProps({
   filteredMovies: { type: Array as PropType<CombinedMovieData[]>, required: true },
   selectedMovie: { type: Object as PropType<CombinedMovieData | null>, default: null },
-  loading: { type: Boolean, default: false }, // Kept for potential list-specific loading
-  error: { type: String as PropType<string | null>, default: null }, // Kept for potential list-specific error
+  loading: { type: Boolean, default: false }, // Keep loading prop
+  error: { type: String as PropType<string | null>, default: null }, // Keep error prop
 });
 
 const emit = defineEmits<{ 
   (e: 'select-movie', movie: CombinedMovieData): void 
 }>();
 
-// Method to emit selection (already defined)
 function handleSelectMovie(movie: CombinedMovieData) {
   emit('select-movie', movie);
 }
@@ -26,10 +25,8 @@ function handleSelectMovie(movie: CombinedMovieData) {
   <el-aside width="260px" class="movie-list-aside">
     <el-scrollbar>
       <!-- Placeholder if no movies or error -->
-      <div v-if="loading" class="no-movies-placeholder">
-        <!-- Basic loading indicator for the list -->
-        <!-- You might want a more sophisticated spinner -->
-        <span>列表載入中...</span>
+      <div v-if="loading" class="no-movies-placeholder"> 
+         <span>列表載入中...</span>
       </div>
        <div v-else-if="error" class="no-movies-placeholder error-text">
          載入電影列表失敗。
@@ -37,7 +34,7 @@ function handleSelectMovie(movie: CombinedMovieData) {
       <div v-else-if="filteredMovies.length === 0" class="no-movies-placeholder">
         目前沒有可顯示的電影。
       </div>
-      <!-- Movie List Items -->
+      <!-- Movie List Items (copied from App.vue) -->
       <div v-else class="movie-list-items">
          <div
            v-for="movie in filteredMovies" 
@@ -83,20 +80,19 @@ function handleSelectMovie(movie: CombinedMovieData) {
 </template>
 
 <style scoped>
-/* Copied Sidebar Styles from App.vue */
+/* Styles for Sidebar (copied from App.vue) */
 .movie-list-aside {
-  background-color: transparent; 
+  background-color: transparent;
   border-right: 1px solid var(--dark-border-color);
-  display: flex; 
+  display: flex;
   flex-direction: column;
-  flex-shrink: 0; 
+  flex-shrink: 0;
 }
-
 .movie-list-aside .el-scrollbar {
-  flex-grow: 1; 
+  flex-grow: 1;
 }
 .movie-list-aside .el-scrollbar__view {
-  padding: 0; 
+  padding: 0;
 }
 
 .no-movies-placeholder {
@@ -107,14 +103,14 @@ function handleSelectMovie(movie: CombinedMovieData) {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 150px; /* Give placeholder some size */
+  min-height: 150px;
 }
 .no-movies-placeholder.error-text {
-    color: var(--el-color-error); /* Use error color */
+  color: var(--el-color-error);
 }
 
 .movie-list-items {
-  /* No specific styling needed here, items handled below */
+  /* No specific styling needed */
 }
 
 .movie-list-item {
@@ -125,11 +121,9 @@ function handleSelectMovie(movie: CombinedMovieData) {
   border-bottom: 1px solid var(--dark-border-color);
   transition: background-color 0.2s;
 }
-
 .movie-list-item:hover {
   background-color: rgba(255, 255, 255, 0.05);
 }
-
 .movie-list-item.is-selected {
   background-color: var(--dark-highlight-bg);
 }
@@ -140,13 +134,12 @@ function handleSelectMovie(movie: CombinedMovieData) {
   margin-right: 12px;
   flex-shrink: 0;
   border-radius: 6px;
-  background-color: #555; /* Placeholder BG */
+  background-color: #555;
 }
 
 .list-item-details {
-  overflow: hidden; 
+  overflow: hidden;
 }
-
 .list-item-details h4 {
   margin: 0 0 2px 0;
   font-size: 0.9rem;
@@ -155,7 +148,6 @@ function handleSelectMovie(movie: CombinedMovieData) {
   text-overflow: ellipsis;
   color: var(--dark-text-primary);
 }
-
 .list-item-english-title {
   font-size: 0.75rem;
   color: var(--dark-text-secondary);
@@ -164,7 +156,6 @@ function handleSelectMovie(movie: CombinedMovieData) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .list-item-details .rating {
   font-size: 0.8rem;
   color: var(--dark-text-secondary);
@@ -174,7 +165,7 @@ function handleSelectMovie(movie: CombinedMovieData) {
 }
 .list-item-details .rating .el-icon {
   margin-right: 4px;
-  color: #f7ba2a; /* Gold star */
+  color: #f7ba2a;
 }
 .list-item-details .rating.imdb-rating-list {
   font-weight: bold;
@@ -198,5 +189,5 @@ function handleSelectMovie(movie: CombinedMovieData) {
   color: var(--dark-text-secondary);
 }
 
-/* Variables assumed to be inherited from App.vue */
+/* Variables assumed to be inherited */
 </style> 
