@@ -1,5 +1,27 @@
 # Development Log
 
+## v1.3.2-beta-5 (2025-05-03)
+
+- **Style(UI):** 移除時刻表影廳名稱 (`screenName`) 外側的括號。
+- **Refactor(UI):** 調整放映類型 (`filmType`) 的排序優先級為：Dolby -> LUXE -> 普通廳別 -> B.O.X.。
+
+## v1.3.2-beta-4 (2025-05-03)
+
+- **Style(UI):** 恢復時刻表欄位佈局，將欄位最小寬度 (`min-width`) 設回 120px，欄位間隙 (`gap`) 確認為 20px。
+
+## v1.3.2-beta-3 (2025-05-03)
+
+- **Style(UI):** 調整時刻表欄位佈局，將欄位最小寬度 (`min-width`) 設為 100px，欄位間隙 (`gap`) 恢復為 20px，以優化空間利用和換行表現。
+
+## v1.3.2-beta-2 (2025-05-03)
+
+- **Fix(UI):** 恢復影廳名稱 (`screenName`) 的顯示邏輯，僅在非 LUXE 和非 Dolby 類型的場次旁顯示（如果存在）。
+
+## v1.3.2-beta-1 (2025-05-03)
+
+- **Feat(UI):** 將包含 "BOX", "sealy", "OSIM" 的放映類型在 UI 上歸類為「B.O.X.」進行分組顯示。
+- **Feat(UI):** 在所有場次時間按鈕旁顯示影廳名稱 (`screenName`)，不再對特定類型隱藏。
+
 ## v1.3.1-beta-1 (2025-05-03)
 
 - **Refactor:** 重構 `imdbScraper.ts` 中的標題清理邏輯 (`searchMovieOnImdb` 函式)，使用可配置的正則表達式陣列 (`TITLE_CLEANUP_REGEXPS`) 替代原本硬編碼移除 "電影日" 的邏輯，提高擴展性和可維護性。

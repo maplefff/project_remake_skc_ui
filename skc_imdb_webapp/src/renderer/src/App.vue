@@ -94,18 +94,28 @@ const filteredMovies = computed(() => {
   });
 });
 
-// 新增: 排序輔助函數
+// --- 新增: 獲取用於分組的正規化 FilmType ---
+function getGroupedFilmType(rawFilmType: string | undefined | null): string {
+  if (!rawFilmType) return '未知類型';
+  const lowerCaseType = rawFilmType.toLowerCase();
+  if (lowerCaseType.includes('b.o.x') || lowerCaseType.includes('box') || lowerCaseType.includes('sealy') || lowerCaseType.includes('osim')) {
+    return 'B.O.X.'; // 正規化名稱改為 B.O.X.
+  }
+  return rawFilmType; // 返回原始名稱
+}
+
+// 修改: 排序輔助函數，調整 B.O.X. 和普通廳的優先級
 function getFilmTypePriority(filmType: string): number {
     const lowerCaseType = filmType.toLowerCase();
     if (lowerCaseType.includes('dolby')) return 0;
     if (lowerCaseType.includes('luxe')) return 1;
-    // 將 B.O.X. 移到最後
-    if (lowerCaseType.includes('b.o.x') || lowerCaseType.includes('box')) return 3;
+    // --- 修改: 調整 B.O.X. 和普通廳的優先級 ---
+    if (lowerCaseType.includes('b.o.x.')) return 3; // B.O.X. 改為 3
     // 其他所有類型 (數位, 日語版 etc.) 為普通優先級
-    return 2; 
+    return 2; // 普通廳改為 2
 }
 
-// 修改: groupedAndSortedSessions 返回排序後的陣列
+// 修改: groupedAndSortedSessions 使用正規化類型進行分組
 const groupedAndSortedSessions = computed(() => {
   if (!selectedMovie.value?.sessions) {
     return {};
@@ -145,7 +155,9 @@ const groupedAndSortedSessions = computed(() => {
   for (const session of sessionsToProcess) { 
     const dateKey = session.date; 
     if (!dateKey || !session.weekday) continue;
-    const filmType = session.filmType || '未知類型';
+    // --- 修改: 使用正規化函數獲取分組依據的 filmType --- 
+    const filmType = getGroupedFilmType(session.filmType);
+    // --- 修改結束 ---
     if (!tempGroupedData[dateKey]) {
       tempGroupedData[dateKey] = { weekday: session.weekday, filmTypes: {} };
     }
@@ -443,12 +455,12 @@ onUnmounted(() => {
                             >
                               {{ session.showtime }}
                             </span>
-                            <!-- Conditionally show screen name using new fields -->
+                            <!-- Conditionally show screen name using new fields, check ORIGINAL filmType -->
                             <span
-                              v-if="session.screenName && !(typeGroup.filmType.toLowerCase().includes('luxe') || typeGroup.filmType.toLowerCase().includes('dolby') || typeGroup.filmType.toLowerCase().includes('b.o.x'))"
+                              v-if="session.screenName && !(session.filmType?.toLowerCase().includes('luxe') || session.filmType?.toLowerCase().includes('dolby'))"
                               class="session-screenname"
                             >
-                              ({{ session.screenName }})
+                              {{ session.screenName }}
                             </span>
                           </div>
                        </div>
@@ -852,12 +864,12 @@ body {
 .filmtype-columns-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px; /* Space between film type columns */
+  gap: 20px; /* Space between film type columns - Reverted back to 20px */
 }
 
 .filmtype-column {
   flex: 1; /* Distribute space */
-  min-width: 120px; /* Minimum width before wrapping */
+  min-width: 120px; /* Minimum width before wrapping - Reverted back to 120px */
   display: flex;
   flex-direction: column;
   gap: 8px; /* Space between session items in a column */
@@ -887,8 +899,9 @@ body {
   font-weight: 500;
   line-height: 1.2;
   text-align: center;
-  min-width: 55px; /* Ensure consistent width */
+  width: 55px; /* Changed: Fixed width to 55px */
   transition: background-color 0.2s ease;
+  box-sizing: border-box; /* Added: Ensure padding is included in width */
 }
 
 .showtime-tag-apple:hover {

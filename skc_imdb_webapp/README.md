@@ -37,9 +37,9 @@
     cd skc_imdb_webapp
     ```
 3.  **安裝依賴 (Install dependencies):**
-    ```bash
+```bash
     npm install
-    ```
+```
 
 ### 開發模式 (Development)
 
