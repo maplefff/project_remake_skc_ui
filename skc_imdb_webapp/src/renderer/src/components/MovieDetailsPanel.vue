@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { PropType } from 'vue';
-import { ElMain, ElIcon, ElImage, ElButton } from 'element-plus'
+import { ElMain, ElIcon, ElImage } from 'element-plus'
 import { Star, Picture as IconPicture, Film, Link } from '@element-plus/icons-vue'
 import type { CombinedMovieData, SKCSession } from '../../../shared/ipc-interfaces';
 // Import necessary formatters (ensure path is correct relative to this file)
 import { formatRuntime, formatGroupDateTitle } from '../utils/formatters'
 
 // --- Define Props ---
-const props = defineProps({
+defineProps({
   selectedMovie: { type: Object as PropType<CombinedMovieData | null>, default: null },
   // Define the expected structure for grouped sessions directly here
   groupedAndSortedSessions: {

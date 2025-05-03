@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted } from 'vue'
 // Import necessary components and icons from Element Plus
-import { ElContainer, ElButton } from 'element-plus'
+import { ElContainer } from 'element-plus'
 import type { CombinedMovieData, SKCSession, LoadingProgressPayload } from '../../shared/ipc-interfaces' // Corrected path in previous step
 
 // Import child components
@@ -186,53 +186,53 @@ const groupedAndSortedSessions = computed(() => {
 });
 
 // Updated function to accept weekday
-function formatGroupDateTitle(dateKey: string, weekday: string): string {
-  if (!dateKey || !weekday) return '日期未知';
-  // Simple MM-DD to MM/DD format
-  const dateParts = dateKey.split('-');
-  if (dateParts.length === 2) {
-    return `${weekday} (${dateParts[0]}/${dateParts[1]})`;
-  } else {
-    return `${weekday} (${dateKey})`; // Fallback
-  }
-}
+// function formatGroupDateTitle(dateKey: string, weekday: string): string {
+//   if (!dateKey || !weekday) return '日期未知';
+//   // Simple MM-DD to MM/DD format
+//   const dateParts = dateKey.split('-');
+//   if (dateParts.length === 2) {
+//     return `${weekday} (${dateParts[0]}/${dateParts[1]})`;
+//   } else {
+//     return `${weekday} (${dateKey})`; // Fallback
+//   }
+// }
 
-function formatRuntime(totalMinutes: number | undefined): string {
-  if (typeof totalMinutes !== 'number' || isNaN(totalMinutes) || totalMinutes <= 0) {
-    return '片長未知';
-  }
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  let result = '';
-  if (hours > 0) {
-    result += `${hours} 小時 `;
-  }
-  if (minutes > 0) {
-    result += `${minutes} 分`;
-  }
-  return result.trim() || '片長未知'; // Return '片長未知' if result is empty (e.g., 0 minutes)
-}
+// function formatRuntime(totalMinutes: number | undefined): string {
+//   if (typeof totalMinutes !== 'number' || isNaN(totalMinutes) || totalMinutes <= 0) {
+//     return '片長未知';
+//   }
+//   const hours = Math.floor(totalMinutes / 60);
+//   const minutes = totalMinutes % 60;
+//   let result = '';
+//   if (hours > 0) {
+//     result += `${hours} 小時 `;
+//   }
+//   if (minutes > 0) {
+//     result += `${minutes} 分`;
+//   }
+//   return result.trim() || '片長未知'; // Return '片長未知' if result is empty (e.g., 0 minutes)
+// }
 
 // --- 新增: 清理 Loading Progress Listener --- 
 let cleanupLoadingProgressListener: (() => void) | null = null;
 
 // --- 新增: 處理場次點擊的方法 ---
-function handleSessionClick(session: SKCSession) {
-  if (!session?.sessionId) {
-    console.warn('Session ID is missing, cannot open link.', session);
-    return;
-  }
-  const targetUrl = `https://www.skcinemas.com/booking/seats?c=1004&s=${session.sessionId}`;
-  console.log('Opening external URL:', targetUrl);
-  if (window.ipc?.openExternalUrl) {
-    window.ipc.openExternalUrl(targetUrl).catch(error => {
-      console.error('Failed to open external URL via IPC:', error);
-      // 可以考慮在這裡顯示一個錯誤提示給用戶
-    });
-  } else {
-    console.error('window.ipc.openExternalUrl is not available.');
-  }
-}
+// function handleSessionClick(session: SKCSession) {
+//   if (!session?.sessionId) {
+//     console.warn('Session ID is missing, cannot open link.', session);
+//     return;
+//   }
+//   const targetUrl = `https://www.skcinemas.com/booking/seats?c=1004&s=${session.sessionId}`;
+//   console.log('Opening external URL:', targetUrl);
+//   if (window.ipc?.openExternalUrl) {
+//     window.ipc.openExternalUrl(targetUrl).catch(error => {
+//       console.error('Failed to open external URL via IPC:', error);
+//       // 可以考慮在這裡顯示一個錯誤提示給用戶
+//     });
+//   } else {
+//     console.error('window.ipc.openExternalUrl is not available.');
+//   }
+// }
 
 // --- Lifecycle Hook ---
 

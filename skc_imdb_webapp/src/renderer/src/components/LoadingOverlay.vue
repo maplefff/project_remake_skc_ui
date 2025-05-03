@@ -20,7 +20,7 @@ defineProps<{
     <p v-if="progressN !== null && progressX !== null" class="progress-detail">
         ({{ progressX }} / {{ progressN }}) {{ movieName ? `- ${movieName}` : '' }}
     </p>
-    <p v-else-if="progressN !== null && progressN > 0" class="progress-detail">
+    <p v-else-if="typeof progressN === 'number' && progressN > 0" class="progress-detail">
        (共 {{ progressN }} 部)
     </p>
   </div>
