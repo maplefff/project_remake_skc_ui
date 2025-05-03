@@ -8,22 +8,30 @@ import type {
     // LoadingProgressType 
 } from '../../shared/ipc-interfaces';
 
+// --- 新增: 正則表達式配置，用於清理標題 ---
+const TITLE_CLEANUP_REGEXPS: RegExp[] = [
+  /電影日/g // 移除所有出現的 "電影日"
+  // 未來可在此添加更多正則，例如移除括號內容：/\(.*?\)/g
+];
+// ---
+
 // 新增: 定義 fetchRawImdbData 的詳細返回狀態
 export type FetchImdbStatus = 'success' | 'no-rating' | 'fetch-failed' | 'not-found';
 
 // 輔助函數 (待實現)
 async function searchMovieOnImdb(page: Page, title: string, englishTitle?: string): Promise<string | null> {
   
-  // 預處理標題：移除 "電影日"
+  // --- 修改: 使用正則表達式清理標題 ---
   let searchQuery = title;
-  const prefixToRemove = "電影日";
-  if (searchQuery.startsWith(prefixToRemove)) {
-    searchQuery = searchQuery.substring(prefixToRemove.length).trim(); // 移除前綴並去除首尾空格
-    console.log(`[imdbScraper] Original title '${title}' contained prefix. Using processed title for search: '${searchQuery}'`);
-  } else if (searchQuery.includes(prefixToRemove)) { // 如果不是前綴，但包含
-    searchQuery = searchQuery.replace(prefixToRemove, '').trim();
-     console.log(`[imdbScraper] Original title '${title}' contained substring. Using processed title for search: '${searchQuery}'`);
+  console.log(`[imdbScraper] Original title: '${searchQuery}'`);
+  for (const regex of TITLE_CLEANUP_REGEXPS) {
+    const cleanedQuery = searchQuery.replace(regex, '').trim();
+    if (cleanedQuery !== searchQuery) {
+      console.log(`[imdbScraper] Applied regex ${regex} for cleanup. New search query: '${cleanedQuery}'`);
+      searchQuery = cleanedQuery;
+    }
   }
+  // --- 清理邏輯結束 ---
   
   const selector = 'ul[class^="ipc-metadata-list"] li a[href^="/title/tt"]';
 

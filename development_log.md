@@ -1,6 +1,8 @@
 # Development Log
 
+## v1.3.1-beta-1 (2025-05-03)
 
+- **Refactor:** 重構 `imdbScraper.ts` 中的標題清理邏輯 (`searchMovieOnImdb` 函式)，使用可配置的正則表達式陣列 (`TITLE_CLEANUP_REGEXPS`) 替代原本硬編碼移除 "電影日" 的邏輯，提高擴展性和可維護性。
 
 ## [1.3.0] - 2025-05-02
 ### Added

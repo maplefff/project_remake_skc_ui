@@ -8,4 +8,7 @@ alwaysApply: true
     *   **父目錄：** `/Users/wu_cheng_yan/cursor/project_remake_skc_ui/`
 **參考目錄 :**
     * **JSON攔截示範:** `/Users/wu_cheng_yan/cursor/project_remake_skc_ui/FetchMovieWebView_study`
-  
+
+**版本更動:**
+    * **dvelopment_log:** `/Users/wu_cheng_yan/cursor/project_remake_skc_ui/development_log.md`
+    一但程式有更動請更新此文件, 並且更動/Users/wu_cheng_yan/cursor/project_remake_skc_ui/skc_imdb_webapp/package.json內的版本號(version)
