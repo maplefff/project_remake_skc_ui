@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+**路徑定義：**
+    *   **專案根目錄：** `/Users/wu_cheng_yan/cursor/project_remake_skc_ui/skc_imdb_webapp`
+    *   **父目錄：** `/Users/wu_cheng_yan/cursor/project_remake_skc_ui/`
+**參考目錄 :**
+    * **JSON攔截示範:** `/Users/wu_cheng_yan/cursor/project_remake_skc_ui/FetchMovieWebView_study`
+  

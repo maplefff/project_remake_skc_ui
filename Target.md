@@ -1,0 +1,1 @@
+我要做一個app, 其中一個模塊功能是做一個SK Cinema網頁爬蟲, 來取得SK Cinema青埔影院的電影時刻表, 其中的方法是使用Playwright攔截頁面https://www.skcinemas.com/sessions?c=1004上觸發的兩個JSON API:/api/VistaDataV2/GetHomePageListForApp, /api/VistaDataV2/GetSessionByCinemasIDForApp. 透過FilmNameID識別, 適當的演算法, 我們可以建立一個JSON格式的電影資訊, 場次資料結構. 另一個模塊是根據上述模塊取得的電影去IMDB網頁進行爬蟲來獲取評分, 導演等資訊, 然後擴充模塊的資料結構. 前端則是做成兩欄位, 左側是卡片式電影展示並按照IMDb評分排序, 右邊則是點擊後秀出電影詳情

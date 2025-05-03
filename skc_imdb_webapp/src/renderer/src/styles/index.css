@@ -1,0 +1,7 @@
+/* Custom styles will go here */ 
+
+#app {
+  width: 100%;
+  height: 100vh;
+  display: block; /* Ensure it takes full width */
+} 
