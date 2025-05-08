@@ -16,13 +16,17 @@ defineProps<{
     <el-icon class="is-loading custom-loading-spinner" :size="30">
       <Loading />
     </el-icon>
+    
     <p class="custom-loading-text">{{ loadingMessage }}</p>
+    <!---
     <p v-if="progressN !== null && progressX !== null" class="progress-detail">
         ({{ progressX }} / {{ progressN }}) {{ movieName ? `- ${movieName}` : '' }}
     </p>
+    
     <p v-else-if="typeof progressN === 'number' && progressN > 0" class="progress-detail">
        (共 {{ progressN }} 部)
     </p>
+    -->
   </div>
 </template>
 

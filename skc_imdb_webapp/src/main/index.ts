@@ -227,6 +227,12 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  // 設定應用程式名稱，這會影響 app.getPath('userData') 等路徑
+  app.setName("SKCinema IMDb Rating");
+
+  console.log('[App Name] Set to:', app.getName());
+  console.log('[UserData Path] Now using:', app.getPath('userData'));
+
   console.log('[IPC Main] IPC handlers registered.');
 
   // IPC handle for initial data
