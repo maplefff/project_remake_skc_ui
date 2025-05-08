@@ -21,27 +21,55 @@ export type FetchImdbStatus = 'success' | 'no-rating' | 'fetch-failed' | 'not-fo
 // 輔助函數 (待實現)
 async function searchMovieOnImdb(page: Page, title: string, englishTitle?: string): Promise<string | null> {
   
-  // --- 修改: 使用正則表達式清理標題 ---
+  // --- 原片名處理 (Primary search with original title) ---
   let searchQuery = title;
-  console.log(`[imdbScraper] Original title: '${searchQuery}'`);
+  console.log(`[imdbScraper] Original title for primary search: '${searchQuery}'`);
   for (const regex of TITLE_CLEANUP_REGEXPS) {
     const cleanedQuery = searchQuery.replace(regex, '').trim();
     if (cleanedQuery !== searchQuery) {
-      console.log(`[imdbScraper] Applied regex ${regex} for cleanup. New search query: '${cleanedQuery}'`);
+      console.log(`[imdbScraper] Applied regex ${regex} for cleanup on primary title. New search query: '${cleanedQuery}'`);
       searchQuery = cleanedQuery;
     }
   }
-  // --- 清理邏輯結束 ---
   
   const selector = 'ul[class^="ipc-metadata-list"] li a[href^="/title/tt"]';
 
-  console.log(`[imdbScraper] Searching IMDb primarily for: '${searchQuery}' (Original title: '${title}', English: '${englishTitle || 'N/A'}')`);
+  console.log(`[imdbScraper] Attempting primary search for: '${searchQuery}' (Original: '${title}')`);
+  let movieUrl = await performSearchAttempt(page, searchQuery, selector);
 
-  // 直接執行搜索嘗試，使用處理後的 searchQuery
-  const movieUrl = await performSearchAttempt(page, searchQuery, selector);
-
-  if (!movieUrl) {
-     console.warn(`[imdbScraper] Search failed for processed title '${searchQuery}' (Original: '${title}').`);
+  if (movieUrl) {
+    console.log(`[imdbScraper] Primary search successful for '${searchQuery}'. URL: ${movieUrl}`);
+  } else {
+    console.warn(`[imdbScraper] Primary search failed for processed title '${searchQuery}' (Original: '${title}').`);
+    // --- 新增: 英文片名備援搜尋邏輯 (Fallback search with English title) ---
+    if (englishTitle && englishTitle.trim() !== '') {
+      console.log(`[imdbScraper] Attempting fallback search with English title: '${englishTitle}'`);
+      let englishSearchQuery = englishTitle; // Start with the raw English title
+      // Apply the same cleanup logic to the English title
+      for (const regex of TITLE_CLEANUP_REGEXPS) {
+        const cleanedQuery = englishSearchQuery.replace(regex, '').trim();
+        if (cleanedQuery !== englishSearchQuery) {
+          console.log(`[imdbScraper] Applied regex ${regex} for cleanup on English title. New search query: '${cleanedQuery}'`);
+          englishSearchQuery = cleanedQuery;
+        }
+      }
+      
+      // Ensure the English title is still valid after cleanup
+      if (englishSearchQuery.trim() !== '') {
+        console.log(`[imdbScraper] Performing fallback search for processed English title: '${englishSearchQuery}'`);
+        movieUrl = await performSearchAttempt(page, englishSearchQuery, selector); // Attempt search with cleaned English title
+        if (movieUrl) {
+          console.log(`[imdbScraper] Fallback search successful for '${englishSearchQuery}'. URL: ${movieUrl}`);
+        } else {
+          console.warn(`[imdbScraper] Fallback search also failed for processed English title '${englishSearchQuery}'.`);
+        }
+      } else {
+        console.log(`[imdbScraper] English title ('${englishTitle}') became empty after cleanup, skipping fallback search.`);
+      }
+    } else {
+      console.log(`[imdbScraper] No English title provided or it is empty, skipping fallback search.`);
+    }
+    // --- 備援搜尋邏輯結束 ---
   }
 
   return movieUrl;
