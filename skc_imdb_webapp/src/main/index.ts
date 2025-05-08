@@ -734,14 +734,17 @@ app.whenReady().then(() => {
   // --- 新增: 處理開啟外部連結的請求 ---
   const handleOpenExternalUrl: OpenExternalUrlHandler = async (_event, url) => {
     console.log(`[IPC Main] Received request to open external URL: ${url}`);
-    // 安全性檢查：只允許開啟 skcinemas.com 的訂票相關網址
-    if (url && typeof url === 'string' && url.startsWith('https://www.skcinemas.com/booking/seats?')) {
+
+    // 更新安全性檢查：允許 SKCinema 訂票頁和 IMDb 電影頁
+    const isSkcBookingUrl = url?.startsWith('https://www.skcinemas.com/booking/seats?');
+    const isImdbTitleUrl = url?.startsWith('https://www.imdb.com/title/'); // 檢查 IMDb 電影頁
+
+    if (url && typeof url === 'string' && (isSkcBookingUrl || isImdbTitleUrl)) { // 使用 || (或) 邏輯
       try {
         await shell.openExternal(url);
         console.log(`[IPC Main] Successfully opened external URL: ${url}`);
       } catch (error) {
         console.error(`[IPC Main] Failed to open external URL ${url}:`, error);
-        // 可以考慮是否要將錯誤傳回前端
         throw new Error(`無法開啟外部連結: ${error instanceof Error ? error.message : String(error)}`);
       }
     } else {
