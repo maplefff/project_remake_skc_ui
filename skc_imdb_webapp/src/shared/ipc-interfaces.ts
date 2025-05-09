@@ -91,14 +91,16 @@ export interface GetImdbRawDataInput {
 // 返回值：原始或半處理的 IMDb 資料
 export interface ImdbRawDataPayload {
   status?: FetchImdbStatus;
-  imdbUrl?: string;
+  imdbUrl?: string | null;
   imdbRating?: string | null;
-  plot?: string;
-  genres?: string[];
-  directors?: string[];
-  cast?: string[];
-  jsonLd?: any;
-  error?: string;
+  plot?: string | null;
+  genres?: string[] | null;
+  directors?: string[] | null;
+  cast?: string[] | null;
+  jsonLd?: any | null; // 儲存原始 JSON-LD
+  imdbPageTitle?: string | null; // 新增：從 IMDb 頁面抓取的標題，用於驗證
+  error?: string | null;
+  // 可在此添加其他從 IMDb 直接獲取的原始欄位
 }
 export type GetImdbRawDataHandler = (event: IpcMainInvokeEvent, input: GetImdbRawDataInput) => Promise<ImdbRawDataPayload>;
 export type GetImdbRawDataRenderer = (input: GetImdbRawDataInput) => Promise<ImdbRawDataPayload>;

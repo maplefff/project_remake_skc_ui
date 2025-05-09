@@ -15,12 +15,64 @@ const TITLE_CLEANUP_REGEXPS: RegExp[] = [
 ];
 // ---
 
+// --- 新增: 相似度驗證閾值 ---
+const SIMILARITY_THRESHOLD = 80; // 百分比
+// ---
+
 // 新增: 定義 fetchRawImdbData 的詳細返回狀態
 export type FetchImdbStatus = 'success' | 'no-rating' | 'fetch-failed' | 'not-found';
 
-// 輔助函數 (待實現)
-async function searchMovieOnImdb(page: Page, title: string, englishTitle?: string): Promise<string | null> {
+// --- 新增: 標題相似度計算函數 (Jaccard) ---
+function calculateTitleSimilarity(title1: string, title2: string): number {
+  if (!title1 || !title2) {
+    return 0;
+  }
+
+  const normalizeAndTokenize = (str: string): Set<string> => {
+    return new Set(
+      str
+        .toLowerCase()
+        .split(/\s+|\p{P}/u) // 按空白或標點符號分詞 (Unicode)
+        .filter(token => token.length > 0)
+    );
+  };
+
+  const tokens1 = normalizeAndTokenize(title1);
+  const tokens2 = normalizeAndTokenize(title2);
+
+  if (tokens1.size === 0 && tokens2.size === 0) {
+    return 100; // 兩個空標題視為完全匹配
+  }
+  if (tokens1.size === 0 || tokens2.size === 0) {
+    return 0; // 一個空一個非空，視為不匹配
+  }
+
+  const intersection = new Set([...tokens1].filter(token => tokens2.has(token)));
+  const union = new Set([...tokens1, ...tokens2]);
+
+  if (union.size === 0) { 
+    return tokens1.size === 0 && tokens2.size === 0 ? 100 : 0;
+  }
+
+  const similarity = (intersection.size / union.size) * 100;
+  return parseFloat(similarity.toFixed(2)); // 保留兩位小數
+}
+// ---
+
+// 修改: searchMovieOnImdb 的返回類型，增加 searchedTitle 和 sourceTitleType
+interface SearchMovieResult {
+  movieUrl: string | null;
+  searchedTitle: string | null;       // 記錄最終是用哪個標題搜尋成功的
+  sourceTitleType: 'original' | 'english' | null; // 記錄成功來源是原片名還是英文名
+}
+
+// 原 searchMovieOnImdb 函數，修改其返回類型和返回内容
+async function searchMovieOnImdb(page: Page, title: string, englishTitle?: string): Promise<SearchMovieResult> {
   
+  let movieUrl: string | null = null;
+  let finalSearchedTitle: string | null = null;
+  let finalSourceTitleType: 'original' | 'english' | null = null;
+
   // --- 原片名處理 (Primary search with original title) ---
   let searchQuery = title;
   console.log(`[imdbScraper] Original title for primary search: '${searchQuery}'`);
@@ -34,18 +86,26 @@ async function searchMovieOnImdb(page: Page, title: string, englishTitle?: strin
   
   const selector = 'ul[class^="ipc-metadata-list"] li a[href^="/title/tt"]';
 
-  console.log(`[imdbScraper] Attempting primary search for: '${searchQuery}' (Original: '${title}')`);
-  let movieUrl = await performSearchAttempt(page, searchQuery, selector);
+  if (searchQuery.trim() !== '') { // 確保清理後的原片名不為空
+    console.log(`[imdbScraper] Attempting primary search for: '${searchQuery}' (Original: '${title}')`);
+    movieUrl = await performSearchAttempt(page, searchQuery, selector);
+  }
 
   if (movieUrl) {
     console.log(`[imdbScraper] Primary search successful for '${searchQuery}'. URL: ${movieUrl}`);
+    finalSearchedTitle = searchQuery; 
+    finalSourceTitleType = 'original';
   } else {
-    console.warn(`[imdbScraper] Primary search failed for processed title '${searchQuery}' (Original: '${title}').`);
-    // --- 新增: 英文片名備援搜尋邏輯 (Fallback search with English title) ---
+    if (searchQuery.trim() !== '') {
+        console.warn(`[imdbScraper] Primary search failed for processed title '${searchQuery}' (Original: '${title}').`);
+    } else {
+        console.warn(`[imdbScraper] Primary title '${title}' became empty after cleanup, skipping primary search.`);
+    }
+    
+    // --- 英文片名備援搜尋邏輯 ---
     if (englishTitle && englishTitle.trim() !== '') {
       console.log(`[imdbScraper] Attempting fallback search with English title: '${englishTitle}'`);
-      let englishSearchQuery = englishTitle; // Start with the raw English title
-      // Apply the same cleanup logic to the English title
+      let englishSearchQuery = englishTitle; 
       for (const regex of TITLE_CLEANUP_REGEXPS) {
         const cleanedQuery = englishSearchQuery.replace(regex, '').trim();
         if (cleanedQuery !== englishSearchQuery) {
@@ -54,12 +114,13 @@ async function searchMovieOnImdb(page: Page, title: string, englishTitle?: strin
         }
       }
       
-      // Ensure the English title is still valid after cleanup
       if (englishSearchQuery.trim() !== '') {
         console.log(`[imdbScraper] Performing fallback search for processed English title: '${englishSearchQuery}'`);
-        movieUrl = await performSearchAttempt(page, englishSearchQuery, selector); // Attempt search with cleaned English title
+        movieUrl = await performSearchAttempt(page, englishSearchQuery, selector); 
         if (movieUrl) {
           console.log(`[imdbScraper] Fallback search successful for '${englishSearchQuery}'. URL: ${movieUrl}`);
+          finalSearchedTitle = englishSearchQuery; 
+          finalSourceTitleType = 'english';
         } else {
           console.warn(`[imdbScraper] Fallback search also failed for processed English title '${englishSearchQuery}'.`);
         }
@@ -69,10 +130,9 @@ async function searchMovieOnImdb(page: Page, title: string, englishTitle?: strin
     } else {
       console.log(`[imdbScraper] No English title provided or it is empty, skipping fallback search.`);
     }
-    // --- 備援搜尋邏輯結束 ---
   }
 
-  return movieUrl;
+  return { movieUrl, searchedTitle: finalSearchedTitle, sourceTitleType: finalSourceTitleType };
 }
 
 // 將單次搜索嘗試提取為輔助函數
@@ -124,6 +184,38 @@ async function fallbackScraping(page: Page): Promise<Partial<ImdbRawDataPayload>
     console.log('[imdbScraper] Performing fallback DOM scraping...');
     const scrapedData: Partial<ImdbRawDataPayload> = {};
     try {
+      // 新增: 電影主標題 (嘗試從 H1 data-testid 獲取)
+      const titleSelector = 'h1[data-testid="hero__pageTitle"]'; 
+      try {
+        await page.waitForSelector(titleSelector, { timeout: 3000 });
+        scrapedData.imdbPageTitle = (await page.textContent(titleSelector))?.trim() || undefined;
+        if (scrapedData.imdbPageTitle) {
+            console.log(`[imdbScraper] Fallback - Page Title: ${scrapedData.imdbPageTitle}`);
+        } else {
+            console.warn('[imdbScraper] Fallback - Page Title selector found, but text content is empty.');
+        }
+      } catch { 
+        console.warn('[imdbScraper] Fallback - Page Title selector (h1[data-testid="hero__pageTitle"]) not found. Will try another common H1 selector.');
+        // 嘗試備用 H1 選擇器 (更通用，但可能不那麼精準)
+        const altTitleSelector = 'h1'; 
+        try {
+            await page.waitForSelector(altTitleSelector, { timeout: 1000 }); 
+            const allH1s = await page.locator(altTitleSelector).allTextContents();
+            if (allH1s.length > 0) {
+                scrapedData.imdbPageTitle = allH1s[0]?.trim() || undefined;
+                if (scrapedData.imdbPageTitle) {
+                    console.log(`[imdbScraper] Fallback - Page Title (alt H1): ${scrapedData.imdbPageTitle}`);
+                } else {
+                    console.warn('[imdbScraper] Fallback - Alt Page Title selector (h1) found, but text content is empty.');
+                }
+            } else {
+                 console.warn('[imdbScraper] Fallback - Alt Page Title selector (h1) did not find any elements.');
+            }
+        } catch { 
+            console.warn('[imdbScraper] Fallback - Alt Page Title selector (h1) also not found or timed out.');
+        }
+      }
+
       // 評分
       const ratingSelector = '[data-testid="hero-rating-bar__aggregate-rating__score"] > span:first-child';
       try {
@@ -213,7 +305,8 @@ export async function fetchRawImdbData(
     let payload: ImdbRawDataPayload = {};
 
     // 1. 搜索電影並獲取 IMDb 頁面 URL
-    const movieUrl = await searchMovieOnImdb(page, input.movieName, input.englishTitle);
+    const searchResult = await searchMovieOnImdb(page, input.movieName, input.englishTitle);
+    const { movieUrl, searchedTitle, sourceTitleType } = searchResult;
 
     if (movieUrl) {
       payload.imdbUrl = movieUrl;
@@ -229,10 +322,11 @@ export async function fetchRawImdbData(
       payload.jsonLd = jsonLdData; // 儲存原始 JSON-LD
 
       let extractedRating: string | null = null;
+      let imdbPageTitle: string | null = null; 
 
       if (jsonLdData && jsonLdData['@type'] === 'Movie') {
-        // 3a. 從 JSON-LD 解析資料 (優先)
         console.log('[imdbScraper] Processing data from JSON-LD...');
+        imdbPageTitle = jsonLdData.name?.trim() || null; 
         extractedRating = jsonLdData.aggregateRating?.ratingValue?.toString() || null;
         payload.plot = jsonLdData.description || null;
         payload.genres = Array.isArray(jsonLdData.genre) ? jsonLdData.genre : (typeof jsonLdData.genre === 'string' ? [jsonLdData.genre] : null);
@@ -244,14 +338,56 @@ export async function fetchRawImdbData(
           : null;
         console.log('[imdbScraper] JSON-LD processing complete.');
       } else {
-        // 3b. 如果 JSON-LD 失敗或類型不對，執行後備 DOM 抓取
         console.log('[imdbScraper] JSON-LD failed or invalid, attempting fallback scraping...');
         const fallbackData = await fallbackScraping(page);
         payload = { ...fallbackData, ...payload }; 
-        extractedRating = fallbackData.imdbRating || null; // Use fallback rating
+        extractedRating = fallbackData.imdbRating || null; 
+        if (!imdbPageTitle) { // 如果 JSON-LD 未提供標題，則使用 fallback 的
+          imdbPageTitle = fallbackData.imdbPageTitle?.trim() || null;
+        }
       }
 
-      // 4. 判斷狀態並設置 payload
+      // --- 新增: 標題相似度驗證 ---
+      if (imdbPageTitle && searchedTitle) { // 首先確保兩個用於比較的標題都實際存在
+        if (sourceTitleType === 'english') {
+          // 只有當來源是英文備援搜尋時，才進行嚴格的相似度驗證
+          const similarity = calculateTitleSimilarity(searchedTitle, imdbPageTitle);
+          console.log(`[imdbScraper] Title similarity check (Source: English Fallback): Input='${searchedTitle}', IMDbPage='${imdbPageTitle}', Similarity=${similarity}%`);
+
+          if (similarity < SIMILARITY_THRESHOLD) {
+            console.warn(`[imdbScraper] English fallback title similarity (${similarity}%) is below threshold (${SIMILARITY_THRESHOLD}%). Marking as not found.`);
+            payload.status = 'not-found';
+            payload.error = `Title similarity too low for English fallback (${similarity.toFixed(2)}%): Input '${searchedTitle}' vs IMDb Page '${imdbPageTitle}'`;
+            payload.imdbUrl = movieUrl; 
+            payload.imdbRating = null;
+            payload.plot = null;
+            payload.genres = null;
+            payload.directors = null;
+            payload.cast = null;
+            payload.jsonLd = null; 
+            payload.imdbPageTitle = imdbPageTitle; 
+            
+            if (page) { try { await page.close(); console.log('[imdbScraper] Page closed due to low similarity on English fallback.'); } catch (e) { console.warn('[imdbScraper] Error closing page after low similarity:', e);}}
+            if (ownBrowser && browser) { try { await browser.close(); console.log('[imdbScraper] Browser closed due to low similarity on English fallback.'); } catch(e) { console.error('[imdbScraper] Error closing browser after low similarity:', e);}}
+            return payload; 
+          }
+        } else if (sourceTitleType === 'original') {
+          // 如果是原片名搜尋成功，可以選擇性地計算並記錄相似度，但不因此將其標記為失敗
+          const similarity = calculateTitleSimilarity(searchedTitle, imdbPageTitle);
+          console.log(`[imdbScraper] Title similarity info (Source: Original Title): Input='${searchedTitle}', IMDbPage='${imdbPageTitle}', Similarity=${similarity}%. (Validation not strictly enforced for original title matches)`);
+          // 若有需要，未來可在此處加入針對原片名匹配的較寬鬆驗證或特定邏輯
+        } else {
+          // sourceTitleType 為 null (表示搜尋完全失敗，movieUrl 也為 null，理論上不會執行到這裡，因為外層有 if(movieUrl) )
+          // 或者 searchedTitle 為空，但 imdbPageTitle 存在的情況 (較罕見)
+          console.log(`[imdbScraper] Skipping similarity check: sourceTitleType is '${sourceTitleType}' or searchedTitle is missing, but imdbPageTitle was found ('${imdbPageTitle}').`);
+        }
+      } else {
+        if (!searchedTitle) console.warn('[imdbScraper] Cannot perform similarity check: searchedTitle is missing.');
+        if (!imdbPageTitle) console.warn('[imdbScraper] Cannot perform similarity check: imdbPageTitle is missing (from JSON-LD and fallback scraping).');
+      }
+      // --- 相似度驗證結束 ---
+
+      // 4. 判斷狀態並設置 payload (如果未因相似度不足而提前返回)
       if (extractedRating) {
           payload.status = 'success';
           payload.imdbRating = extractedRating;
