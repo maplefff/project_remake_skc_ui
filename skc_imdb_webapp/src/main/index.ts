@@ -456,7 +456,7 @@ app.whenReady().then(() => {
                 movieName: movie.movieName,
                 englishTitle: movie.englishTitle,
                 filmNameID: movie.filmNameID
-            }, imdbContext!)
+            })
             .then((imdbResult: ImdbRawDataPayload) => {
                imdbFetchedCount++;
                const movieName = movie.englishTitle || movie.movieName;

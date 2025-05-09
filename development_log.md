@@ -1,5 +1,28 @@
 # Development Log
 
+## [1.5.0] - 2024-07-24
+
+- **重大更改：IMDb 爬蟲 (`imdbScraper.ts`) 重構**
+    - 核心技術棧從 Playwright 遷移至 Axios (用於 HTTP 請求) 和 Cheerio (用於 HTML 解析)，旨在提升性能和降低資源消耗。
+    - 重構了以下主要函數以移除 Playwright 依賴：
+        - `performSearchAttempt`: 改為使用 `fetchHtml` 和 Cheerio 進行搜索頁解析。
+        - `extractJsonLd`: 改為接收 HTML 字符串並使用 Cheerio 提取 JSON-LD。為解決 `TS7030` 編譯錯誤，內部邏輯調整為使用輔助函數 `parseSingleJsonLdScript` 和 `for...of` 循環，以提供更清晰的控制流。
+        - `fallbackScraping`: 改為接收 HTML 字符串並使用 Cheerio 進行 DOM 元素備援抓取。
+        - `fetchRawImdbData` (核心入口函數): 完全移除了 Playwright 瀏覽器和頁面上下文管理，改為調用新的輔助函數獲取和處理 HTML。
+    - 新增輔助函數 `fetchHtml`：使用 Axios 進行 HTTP GET 請求，包含重試機制和超時配置。
+    - 保留了關鍵業務邏輯：
+        - 標題清理規則 (`TITLE_CLEANUP_REGEXPS`)。
+        - 原片名與英文片名的備援搜索策略。
+        - 優先從 JSON-LD 提取數據，失敗則進行 DOM 元素備援抓取。
+        - 針對英文備援搜索結果的標題相似度驗證 (`calculateTitleSimilarity` 與 `SIMILARITY_THRESHOLD`)。
+    - 根據測試和反饋調整了以下參數：
+        - `fetchHtml` 的 HTTP 請求重試次數從默認 3 次調整為 2 次。
+        - `fetchHtml` 的 HTTP 請求超時時間從 30000ms 調整為 2500ms。
+        - 移除了原片名搜索成功時不必要的相似度計算日誌。
+    - 修復了在 `npm run build:mac` 過程中出現的多個 TypeScript 編譯錯誤 (TS2554, TS7030, TS6133)，確保了代碼的類型正確性和可編譯性。
+- **其他**：
+    - 在 `src/main/index.ts` 中更新了對 `fetchRawImdbData` 的調用，移除了已廢棄的 `imdbContext` 參數。
+
 ## [1.4.4] - 2025-05-09
 
 - **Refactor(Scraper):** 回退並重做 IMDb 搜尋邏輯：
