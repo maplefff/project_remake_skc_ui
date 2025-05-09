@@ -72,7 +72,7 @@ async function searchMovieOnImdb(page: Page, title: string, englishTitle?: strin
   let movieUrl: string | null = null;
   let finalSearchedTitle: string | null = null;
   let finalSourceTitleType: 'original' | 'english' | null = null;
-
+  
   // --- 原片名處理 (Primary search with original title) ---
   let searchQuery = title;
   console.log(`[imdbScraper] Original title for primary search: '${searchQuery}'`);
@@ -126,7 +126,7 @@ async function searchMovieOnImdb(page: Page, title: string, englishTitle?: strin
         }
       } else {
         console.log(`[imdbScraper] English title ('${englishTitle}') became empty after cleanup, skipping fallback search.`);
-      }
+  }
     } else {
       console.log(`[imdbScraper] No English title provided or it is empty, skipping fallback search.`);
     }

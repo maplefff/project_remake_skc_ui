@@ -130,7 +130,7 @@ async function handlePosterCache(movie: CombinedMovieData): Promise<string | nul
     if (fs.existsSync(cachedData.filePath)) {
       console.log(`[Poster Cache] HIT for ${filmNameID}. Using file: ${cachedData.filePath}`);
       // Return custom protocol URL
-      return `app://imageCache/${path.basename(cachedData.filePath)}`; 
+      return `app://imageCache/${path.basename(cachedData.filePath)}`;
     } else {
       console.warn(`[Poster Cache] File missing for ${filmNameID}, path: ${cachedData.filePath}. Will re-download.`);
       // @ts-expect-error Property 'delete' might not exist on type definition but exists at runtime.

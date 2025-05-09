@@ -16,7 +16,7 @@ export interface SKCSession {
 
 /** 包含 SKC 和 IMDb 資訊的完整電影資料結構 (格式化後) */
 export interface CombinedMovieData {
-  // --- SKC Data ---
+  // --- SKC Data --- 
   filmNameID: string | number;
   movieName: string; // 中文片名
   englishTitle: string; // 英文片名
